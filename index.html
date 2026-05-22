@@ -417,7 +417,6 @@
             const scaleFactor = parseInt(document.getElementById('scale').value);
             const targetWidth = parseInt(document.getElementById('width').value);
             const targetHeight = parseInt(document.getElementById('height').value);
-            const contrast = 1.2;
             
             // Upscale and process
             const upscaledCanvas = upscaleImage(currentImage, targetWidth, targetHeight, scaleFactor);
@@ -441,7 +440,9 @@
                 grayscale.push(gray);
             }
             
-            // Sobel edge detection
+            // Enhanced multi-directional edge detection
+            const prewittX = [-1, 0, 1, -1, 0, 1, -1, 0, 1];
+            const prewittY = [-1, -1, -1, 0, 0, 0, 1, 1, 1];
             const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
             const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
             
@@ -454,38 +455,92 @@
                     gradients.push(grayscale[idx] / 255);
                     
                     if (x > 0 && y > 0 && x < width - 1 && y < height - 1) {
-                        let gx = 0, gy = 0;
+                        let gxP = 0, gyP = 0;
+                        let gxS = 0, gyS = 0;
+                        
                         for (let ky = -1; ky <= 1; ky++) {
                             for (let kx = -1; kx <= 1; kx++) {
                                 const kidx = (ky + 1) * 3 + (kx + 1);
-                                gx += grayscale[(y + ky) * width + (x + kx)] * sobelX[kidx];
-                                gy += grayscale[(y + ky) * width + (x + kx)] * sobelY[kidx];
+                                const pixel = grayscale[(y + ky) * width + (x + kx)];
+                                
+                                gxP += pixel * prewittX[kidx];
+                                gyP += pixel * prewittY[kidx];
+                                gxS += pixel * sobelX[kidx];
+                                gyS += pixel * sobelY[kidx];
                             }
                         }
-                        edges.push(Math.min(1, Math.sqrt(gx * gx + gy * gy) / 4000));
+                        
+                        const prewittMag = Math.sqrt(gxP * gxP + gyP * gyP) / (3 * 255);
+                        const sobelMag = Math.sqrt(gxS * gxS + gyS * gyS) / (4 * 255);
+                        
+                        // Combine edge detection methods
+                        const combinedEdge = (prewittMag + sobelMag) / 2;
+                        edges.push(Math.min(1, combinedEdge));
                     } else {
                         edges.push(0);
                     }
                 }
             }
             
-            // Generate ASCII
-            const charSet = charSets[document.querySelector('input[name="charSet"]:checked').value] || charSets.full;
+            // Adaptive contrast calculation
             const detail = parseInt(document.getElementById('detail').value);
+            const minGray = Math.min(...grayscale);
+            const maxGray = Math.max(...grayscale);
+            const contrastRange = maxGray - minGray;
+            const adaptiveContrast = Math.max(1.2, 1.5 * (contrastRange / 255));
+            
+            // Generate ASCII with 2x2 block processing for better detail
+            const charSet = charSets[document.querySelector('input[name="charSet"]:checked').value] || charSets.full;
             const useColor = document.getElementById('useColor').checked;
             
             let ascii = '';
             
-            for (let y = 0; y < height; y++) {
+            for (let y = 0; y < height - 1; y += 2) {
                 let row = '';
-                for (let x = 0; x < width; x++) {
-                    const idx = y * width + x;
-                    const value = Math.max(0, Math.min(1, gradients[idx] + edges[idx] * detail * 0.3));
-                    const charIndex = Math.floor(value * (charSet.length - 1));
+                for (let x = 0; x < width - 1; x += 2) {
+                    // Process 2x2 block
+                    const positions = [
+                        [y, x], [y, x + 1],
+                        [y + 1, x], [y + 1, x + 1]
+                    ];
+                    
+                    // Calculate block statistics
+                    const blockGrays = positions.map(([py, px]) => grayscale[py * width + px]);
+                    const blockEdges = positions.map(([py, px]) => edges[py * width + px]);
+                    const blockContrast = Math.max(...blockGrays) - Math.min(...blockGrays);
+                    
+                    // Local complexity analysis
+                    const avgGray = blockGrays.reduce((a, b) => a + b, 0) / 4;
+                    const avgEdge = blockEdges.reduce((a, b) => a + b, 0) / 4;
+                    const grayVariance = blockGrays.reduce((sum, g) => sum + Math.pow(g - avgGray, 2), 0) / 4;
+                    
+                    // Enhanced character selection based on block complexity
+                    let baseValue = avgGray / 255;
+                    let edgeBoost = avgEdge * detail * 0.4 * adaptiveContrast;
+                    
+                    // Adjust for local contrast
+                    const contrastBoost = (blockContrast / 255) * 0.15;
+                    baseValue = Math.min(1, baseValue + contrastBoost);
+                    
+                    // Variance-based character complexity
+                    const varianceBoost = Math.sqrt(grayVariance) * 0.2;
+                    baseValue = Math.min(1, baseValue + varianceBoost);
+                    
+                    // Edge-weighted final value
+                    const finalValue = Math.max(0, Math.min(1, baseValue + edgeBoost));
+                    
+                    // Character selection with enhanced range
+                    const charIndex = Math.floor(finalValue * (charSet.length - 1));
                     const char = charSet[Math.min(charIndex, charSet.length - 1)];
                     
+                    // Color handling - use average color of block
                     if (useColor) {
-                        row += `<span style="color:rgb(${pixels[idx * 4]},${pixels[idx * 4 + 1]},${pixels[idx * 4 + 2]})">${char}</span>`;
+                        const colorPositions = positions.flatMap(([py, px]) => [py * width + px]);
+                        const avgR = colorPositions.reduce((sum, i) => sum + pixels[i * 4], 0) / 4;
+                        const avgG = colorPositions.reduce((sum, i) => sum + pixels[i * 4 + 1], 0) / 4;
+                        const avgB = colorPositions.reduce((sum, i) => sum + pixels[i * 4 + 2], 0) / 4;
+                        
+                        row += `<span style="color:rgb(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)})">${char}</span>`;
                     } else {
                         row += char;
                     }
@@ -495,12 +550,12 @@
             
             return {
                 ascii,
-                width,
-                height,
+                width: Math.floor(width / 2),
+                height: Math.floor(height / 2),
                 originalWidth: originalImageData.width,
                 originalHeight: originalImageData.height,
                 scaleFactor,
-                totalChars: width * height
+                totalChars: Math.floor(width / 2) * Math.floor(height / 2)
             };
         }
 
