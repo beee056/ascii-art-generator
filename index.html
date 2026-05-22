@@ -602,8 +602,10 @@
             const width = 1280;
             const height = Math.round(width / ratio);
             
-            document.getElementById('videoWidth').value = width;
-            document.getElementById('videoHeight').value = height;
+            const videoWidthEl = document.getElementById('videoWidth');
+            const videoHeightEl = document.getElementById('videoHeight');
+            if (videoWidthEl) videoWidthEl.value = width;
+            if (videoHeightEl) videoHeightEl.value = height;
         }
         
         // Theme Selection
