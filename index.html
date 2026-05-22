@@ -505,10 +505,12 @@
         }
 
         function displayASCII(ascii) {
-            if (ascii.includes('<span')) {
-                asciiOutput.innerHTML = ascii;
-            } else {
-                asciiOutput.textContent = ascii;
+            if (asciiOutput) {
+                if (ascii.includes('<span')) {
+                    asciiOutput.innerHTML = ascii;
+                } else {
+                    asciiOutput.textContent = ascii;
+                }
             }
         }
 
