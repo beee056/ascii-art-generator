@@ -344,7 +344,7 @@
             const scaleFactor = parseInt(document.getElementById('scale').value);
             const targetWidth = parseInt(document.getElementById('width').value);
             const targetHeight = parseInt(document.getElementById('height').value);
-            const contrast = parseInt(document.getElementById('contrast').value) / 100;
+            const contrast = 1.2; // Fixed contrast value
             
             // Upscale the image first
             const upscaledCanvas = await upscaleImage(currentImage, targetWidth, targetHeight, scaleFactor);
