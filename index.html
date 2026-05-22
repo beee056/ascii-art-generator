@@ -583,9 +583,12 @@
             if (preset && platform !== 'custom') {
                 document.getElementById('width').value = preset.width;
                 document.getElementById('height').value = preset.height;
-                document.getElementById('widthValue').textContent = preset.width;
-                document.getElementById('heightValue').textContent = preset.height;
-                document.getElementById('aspectIndicator').textContent = preset.aspectRatio;
+                const widthValueEl = document.getElementById('widthValue');
+                const heightValueEl = document.getElementById('heightValue');
+                const aspectIndicatorEl = document.getElementById('aspectIndicator');
+                if (widthValueEl) widthValueEl.textContent = preset.width;
+                if (heightValueEl) heightValueEl.textContent = preset.height;
+                if (aspectIndicatorEl) aspectIndicatorEl.textContent = preset.aspectRatio;
                 updateVideoDimensions(preset);
             }
             
@@ -724,7 +727,8 @@
         const originalUpdateStats = updateStats;
         updateStats = function(result) {
             originalUpdateStats(result);
-            document.getElementById('statChars').textContent = result.totalChars || (result.width * result.height);
+            const statCharsEl = document.getElementById('statChars');
+            if (statCharsEl) statCharsEl.textContent = result.totalChars || (result.width * result.height);
             lastGeneratedASCII = result.ascii;
             updateAnalytics(result.ascii);
         };
