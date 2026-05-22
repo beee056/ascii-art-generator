@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="50%" style="stop-color:#764ba2"/>
+      <stop offset="100%" style="stop-color:#f093fb"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <!-- Decorative ASCII art preview -->
+  <text x="50" y="280" font-family="monospace" font-size="20" fill="rgba(255,255,255,0.1)">
+    <tspan>@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%</tspan>
+    <tspan x="50" dy="25">#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#@#</tspan>
+    <tspan x="50" dy="25">%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#</tspan>
+    <tspan x="50" dy="25">@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%@#%</tspan>
+  </text>
+  
+  <!-- Title -->
+  <text x="600" y="200" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="72" font-weight="800" fill="url(#grad)" text-anchor="middle">ASCII Art Generator</text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="280" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="32" fill="#fff" text-anchor="middle">Professional ASCII Art Creation</text>
+  
+  <!-- Features -->
+  <text x="600" y="380" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="28" fill="#667eea" text-anchor="middle">🎨 SNS映え対応 | 📱 全プラットフォーム対応 | ⚡ 高解像度処理</text>
+  
+  <!-- ASCII Preview Example -->
+  <text x="600" y="480" font-family="monospace" font-size="24" fill="#fff" text-anchor="middle">@#%█░▒ @#%█░▒ @#%█░▒ @#%█░▒ @#%█░▒</text>
+  
+  <!-- Call to action -->
+  <rect x="450" y="520" width="300" height="60" rx="30" fill="url(#grad)"/>
+  <text x="600" y="558" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="600" fill="#fff" text-anchor="middle">beee056.github.io/ascii-art-generator</text>
+</svg>
