@@ -718,9 +718,12 @@
             const density = Math.round((nonSpaceCount / charCount) * 100);
             const quality = Math.min(100, Math.round(charCount / 100));
             
-            document.getElementById('analyticChars').textContent = charCount;
-            document.getElementById('analyticDensity').textContent = `${density}%`;
-            document.getElementById('analyticQuality').textContent = quality;
+            const analyticCharsEl = document.getElementById('analyticChars');
+            const analyticDensityEl = document.getElementById('analyticDensity');
+            const analyticQualityEl = document.getElementById('analyticQuality');
+            if (analyticCharsEl) analyticCharsEl.textContent = charCount;
+            if (analyticDensityEl) analyticDensityEl.textContent = `${density}%`;
+            if (analyticQualityEl) analyticQualityEl.textContent = quality;
         }
         
         // Override existing functions
