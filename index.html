@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 High-Res ASCII Art Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+        
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px; }
+        
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 2.8em; background: linear-gradient(90deg, #667eea, #764ba2, #f093fb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .subtitle { color: #666; }
+        
+        /* Info Banner */
+        .info-banner { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid #333; }
+        .info-banner h3 { margin-bottom: 10px; color: #667eea; }
+        .info-banner p { color: #888; line-height: 1.6; }
+        
+        /* Upscaler Notice */
+        .upscaler-notice { background: #1a1a1a; border: 2px solid #667eea; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+        .upscaler-notice h4 { color: #667eea; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .upscaler-notice p { color: #888; font-size: 0.9em; line-height: 1.5; }
+        
+        /* Main Grid */
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        @media (max-width: 800px) { .main-grid { grid-template-columns: 1fr; } }
+        
+        .card { background: #111; border-radius: 16px; padding: 25px; border: 1px solid #222; }
+        .card-title { font-size: 1.3em; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px; }
+        
+        /* Upload Zone */
+        .upload-zone { border: 2px dashed #333; border-radius: 12px; padding: 50px 30px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .upload-zone:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .upload-icon { font-size: 3em; margin-bottom: 15px; }
+        .upload-text { font-size: 1.1em; color: #888; }
+        .upload-hint { color: #555; font-size: 0.85em; margin-top: 8px; }
+        #fileInput { display: none; }
+        
+        /* Preview Canvas */
+        .preview-container { display: none; margin-top: 20px; }
+        .preview-container.active { display: block; }
+        
+        .canvas-wrapper { background: #000; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
+        .canvas-wrapper canvas { width: 100%; border-radius: 6px; }
+        
+        /* ASCII Output */
+        .output-wrapper { background: linear-gradient(180deg, #0a0a0a, #151515); border-radius: 10px; padding: 20px; }
+        .output-wrapper h3 { font-size: 1.1em; margin-bottom: 15px; color: #fff; }
+        #asciiOutput { font-family: 'Courier New', monospace; font-size: 10px; line-height: 1.0; white-space: pre; overflow-x: auto; max-height: 400px; color: #e0e0e0; background: #000; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+        
+        /* Stats */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 15px; padding: 15px; background: #0a0a0a; border-radius: 8px; }
+        .stat { text-align: center; }
+        .stat-label { font-size: 0.75em; color: #555; margin-bottom: 4px; }
+        .stat-value { font-size: 1.2em; font-weight: 700; color: #667eea; }
+        
+        /* Controls */
+        .control-group { margin-bottom: 18px; }
+        .control-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; color: #888; }
+        .control-label .value { background: #222; color: #667eea; padding: 4px 10px; border-radius: 5px; font-weight: 600; }
+        
+        input[type="range"] { width: 100%; height: 6px; border-radius: 3px; background: #222; outline: none; -webkit-appearance: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 10px; padding: 12px; background: #111; border-radius: 8px; cursor: pointer; }
+        .checkbox-group input { width: 18px; height: 18px; accent-color: #667eea; }
+        
+        /* Character Set */
+        .char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .char-option { display: flex; align-items: center; gap: 10px; padding: 10px; background: #111; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .char-option:hover { background: #151515; }
+        .char-option.selected { border-color: #667eea; background: rgba(102, 126, 234, 0.15); }
+        .char-option input { display: none; }
+        .char-preview { font-size: 1.3em; }
+        .char-name { font-size: 0.85em; }
+        
+        /* Buttons */
+        .generate-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: white; font-size: 1.1em; font-weight: 700; cursor: pointer; border-radius: 10px; transition: all 0.3s; margin-top: 20px; }
+        .generate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); }
+        .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        
+        .export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .export-btn { padding: 12px; background: #111; border: 2px solid #333; color: #fff; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .export-btn:hover { background: #151515; border-color: #667eea; }
+        
+        /* Overlay */
+        .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; z-index: 1000; }
+        .overlay.active { display: flex; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #222; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .overlay-text { font-size: 1.3em; color: #fff; }
+        
+        /* Notification */
+        .notification { position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 20px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 1001; animation: slideIn 0.4s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 ASCII Art</h1>
+            <p class="subtitle">画像をアスキーアートに変換</p>
+        </header>
+        
+        <div class="main-grid">
+            <div>
+                <div class="card">
+                    <h2 class="card-title">📷 画像ソース</h2>
+                    <div class="upload-zone" id="uploadArea">
+                        <div class="upload-icon">📁</div>
+                        <p class="upload-text">画像をドロップ または クリック</p>
+                        <p class="upload-hint">PNG, JPG, GIF対応</p>
+                        <input type="file" id="fileInput" accept="image/*">
+                    </div>
+                    <div class="preview-container" id="previewContainer">
+                        <div class="canvas-wrapper">
+                            <canvas id="originalCanvas"></canvas>
+                        </div>
+                        <div class="output-wrapper">
+                            <h3>✨ 生成結果</h3>
+                            <pre id="asciiOutput">ここにアスキーアートが表示されます</pre>
+                        </div>
+                        <div class="stats" id="statsBar">
+                            <div class="stat"><div class="stat-label">元</div><div class="stat-value" id="statOriginal">-</div></div>
+                            <div class="stat"><div class="stat-label">処理</div><div class="stat-value" id="statProcessed">-</div></div>
+                            <div class="stat"><div class="stat-label">出力</div><div class="stat-value" id="statOutput">-</div></div>
+                            <div class="stat"><div class="stat-label">倍率</div><div class="stat-value" id="statScale">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="card">
+                    <h2 class="card-title">⚙️ 設定</h2>
+                    
+                    <div class="control-group">
+                        <div class="control-label">幅<span class="value" id="widthValue">150</span></div>
+                        <input type="range" id="width" min="40" max="300" value="150" oninput="updateValue('width')">
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="control-label">高さ<span class="value" id="heightValue">100</span></div>
+                        <input type="range" id="height" min="20" max="200" value="100" oninput="updateValue('height')">
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="control-label">アップスケール<span class="value" id="scaleValue">3x</span></div>
+                        <input type="range" id="scale" min="1" max="6" value="3" oninput="updateValue('scale')">
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="control-label">詳細度<span class="value" id="detailValue">7</span></div>
+                        <input type="range" id="detail" min="1" max="10" value="7" oninput="updateValue('detail')">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="checkbox-group">
+                            <input type="checkbox" id="useColor" checked>
+                            <span>🌈 カラー</span>
+                        </label>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="control-label">キャラクター</div>
+                        <div class="char-grid">
+                            <label class="char-option selected">
+                                <input type="radio" name="charSet" value="full" checked>
+                                <span class="char-preview">@%#&8</span>
+                                <span class="char-name">詳細70</span>
+                            </label>
+                            <label class="char-option">
+                                <input type="radio" name="charSet" value="extended">
+                                <span class="char-preview">@#&%8</span>
+                                <span class="char-name">拡張28</span>
+                            </label>
+                            <label class="char-option">
+                                <input type="radio" name="charSet" value="detailed">
+                                <span class="char-preview">@#█S</span>
+                                <span class="char-name">詳細18</span>
+                            </label>
+                            <label class="char-option">
+                                <input type="radio" name="charSet" value="blocks">
+                                <span class="char-preview">█▓▒░</span>
+                                <span class="char-name">ブロック</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button class="generate-btn" id="generateBtn" onclick="generateASCII()" disabled>🎨 生成</button>
+                    
+                    <div class="export-grid">
+                        <button class="export-btn" onclick="copyToClipboard()">📋 コピー</button>
+                        <button class="export-btn" onclick="downloadAsText()">💾 保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="overlay" id="processingOverlay">
+        <div class="spinner"></div>
+        <div class="overlay-text">🎨 生成中...</div>
+    </div>
+
+    <script>
+        const charSets = {
+            blocks: ['█', '▓', '▒', '░', ' ', '░', '▒', '▓', '█'],
+            detailed: [' ', '·', ':', ';', '!', 'i', 't', 'r', 'c', 'a', 'n', 'o', 'e', 'S', 'B', '@', '#', '█'],
+            standard: [' ', '.', '·', ':', ';', '+', '*', '#', '@'],
+            simple: [' ', '.', '·', ':', ';', '+', '*'],
+            extended: ['@', '#', '&', '%', '8', '6', '9', '5', '3', '2', '?', '!', '|', '/', '\\', '=', '-', '+', ':', '.', ' ', ' ', ' ', ' ', ' ', ' '],
+            full: [' ', '·', '`', "'", ',', ':', ';', 'I', 'l', '!', 'i', '>', '<', '~', '+', '_', '-', '?', ']', '[', '}', '{', '1', ')', '(', '1', '|', '\\', '/', 't', 'f', 'j', 'r', 'x', 'n', 'u', 'v', 'c', 'z', 'X', 'Y', 'U', 'J', 'C', 'L', 'Q', '0', 'O', 'Z', 'm', 'w', 'q', 'p', 'd', 'b', 'k', 'h', 'a', 'o', '*', '#', 'M', 'W', '&', '8', '%', 'B', '@']
+        };
+
+        let currentImage = null;
+        let originalImageData = null;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const originalCanvas = document.getElementById('originalCanvas');
+        const asciiOutput = document.getElementById('asciiOutput');
+        const previewContainer = document.getElementById('previewContainer');
+        const processingOverlay = document.getElementById('processingOverlay');
+
+        // Event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.borderColor = '#667eea'; });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = '#333'; });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#333';
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+        
+        document.querySelectorAll('.char-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.char-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+            });
+        });
+
+        function handleFile(file) {
+            showNotification('🔄 画像を読み込み中...');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImage = img;
+                    originalImageData = {
+                        width: img.width,
+                        height: img.height
+                    };
+                    displayOriginalImage();
+                    showNotification(`✅ ${img.width}×${img.height}の画像を読み込みました！`);
+                    document.getElementById('generateBtn').disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayOriginalImage() {
+            const ctx = originalCanvas.getContext('2d');
+            const targetWidth = parseInt(document.getElementById('width').value);
+            const targetHeight = parseInt(document.getElementById('height').value);
+            
+            // Scale image to match target dimensions
+            const scale = Math.min(targetWidth / currentImage.width, targetHeight / currentImage.height);
+            const displayWidth = Math.floor(currentImage.width * scale);
+            const displayHeight = Math.floor(currentImage.height * scale);
+            
+            originalCanvas.width = displayWidth;
+            originalCanvas.height = displayHeight;
+            ctx.drawImage(currentImage, 0, 0, displayWidth, displayHeight);
+            previewContainer.classList.add('active');
+        }
+
+        async function generateASCII() {
+            if (!currentImage) {
+                showNotification('⚠️ まず画像をアップロードしてください');
+                return;
+            }
+            
+            processingOverlay.classList.add('active');
+            showNotification('🔍 高解像度処理中...');
+            await sleep(400);
+            
+            const result = await processImage();
+            
+            displayASCII(result.ascii);
+            updateStats(result);
+            
+            processingOverlay.classList.remove('active');
+            showNotification(`🎉 ${result.width}×${result.height}のアスキーアートを生成！`);
+        }
+
+        async function upscaleImage(img, targetWidth, targetHeight, scaleFactor) {
+            // Use high-quality bicubic interpolation
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // First upscale to targetWidth * scaleFactor
+            const upscaleWidth = targetWidth * scaleFactor;
+            const upscaleHeight = targetHeight * scaleFactor;
+            
+            tempCanvas.width = upscaleWidth;
+            tempCanvas.height = upscaleHeight;
+            
+            // Enable high-quality image smoothing
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.imageSmoothingQuality = 'high';
+            
+            tempCtx.drawImage(img, 0, 0, upscaleWidth, upscaleHeight);
+            
+            // Apply unsharp mask for edge enhancement
+            const finalCanvas = document.createElement('canvas');
+            const finalCtx = finalCanvas.getContext('2d');
+            finalCanvas.width = upscaleWidth;
+            finalCanvas.height = upscaleHeight;
+            
+            // Simple contrast enhancement for better edge detection
+            const imageData = tempCtx.getImageData(0, 0, upscaleWidth, upscaleHeight);
+            const data = imageData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Increase contrast slightly
+                for (let c = 0; c < 3; c++) {
+                    const val = data[i + c];
+                    data[i + c] = val > 128 ? Math.min(255, val * 1.05) : Math.max(0, val * 0.95);
+                }
+            }
+            
+            finalCtx.putImageData(imageData, 0, 0);
+            
+            return finalCanvas;
+        }
+
+        async function processImage() {
+            const scaleFactor = parseInt(document.getElementById('scale').value);
+            const targetWidth = parseInt(document.getElementById('width').value);
+            const targetHeight = parseInt(document.getElementById('height').value);
+            const contrast = parseInt(document.getElementById('contrast').value) / 100;
+            
+            // Upscale the image first
+            const upscaledCanvas = await upscaleImage(currentImage, targetWidth, targetHeight, scaleFactor);
+            
+            // Now use the upscaled canvas for processing
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const width = targetWidth;
+            const height = targetHeight;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw from upscaled canvas to final size
+            ctx.drawImage(upscaledCanvas, 0, 0, width, height);
+            
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const pixels = imageData.data;
+            
+            // High quality grayscale with gamma correction
+            const grayscale = [];
+            for (let i = 0; i < pixels.length; i += 4) {
+                let gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+                gray = Math.pow(gray / 255, 0.9) * 255; // Less aggressive gamma for better gradation
+                grayscale.push(gray);
+            }
+            
+            // Sobel edge detection with Gaussian weights
+            const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+            const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+            const weights = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+            
+            const edges = [];
+            const gradients = []; // For smooth gradation
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+                        // Boundary pixels: use grayscale directly for gradation
+                        const idx = y * width + x;
+                        gradients.push(grayscale[idx] / 255);
+                        edges.push(0);
+                    } else {
+                        // Sobel edge detection for inner pixels
+                        let gx = 0, gy = 0;
+                        
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = (y + ky) * width + (x + kx);
+                                const kidx = (ky + 1) * 3 + (kx + 1);
+                                gx += grayscale[idx] * sobelX[kidx] * weights[kidx];
+                                gy += grayscale[idx] * sobelY[kidx] * weights[kidx];
+                            }
+                        }
+                        
+                        let edge = Math.sqrt(gx * gx + gy * gy) / (255 * 16);
+                        edge = Math.max(0, Math.min(1, edge * contrast));
+                        edges.push(edge);
+                        
+                        // Calculate gradient for smooth gradation
+                        const idx = y * width + x;
+                        gradients.push(grayscale[idx] / 255);
+                    }
+                }
+            }
+            
+            // Generate ASCII with smooth gradation
+            const charSet = charSets[document.querySelector('input[name="charSet"]:checked').value] || charSets.full;
+            const detail = parseInt(document.getElementById('detail').value);
+            const useColor = document.getElementById('useColor').checked;
+            
+            let ascii = '';
+            
+            for (let y = 0; y < height; y++) {
+                let row = '';
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    
+                    // Get gradient value (0 to 1)
+                    let brightness = gradients[idx] || 0;
+                    
+                    // Get edge value (0 to 1)
+                    let edgeStrength = edges[idx] || 0;
+                    
+                    // Apply unsharp masking-like effect: boost edges, preserve gradation
+                    // Use brightness for smooth areas, edge info for contours
+                    const edgeBoost = edgeStrength * detail * 0.3;
+                    let effectiveValue = brightness + edgeBoost;
+                    effectiveValue = Math.max(0, Math.min(1, effectiveValue));
+                    
+                    // Map to character set - larger set means smoother gradation
+                    const charIndex = Math.floor(effectiveValue * (charSet.length - 1));
+                    const char = charSet[Math.min(charIndex, charSet.length - 1)];
+                    
+                    if (useColor) {
+                        const r = pixels[idx * 4];
+                        const g = pixels[idx * 4 + 1];
+                        const b = pixels[idx * 4 + 2];
+                        row += `<span style="color:rgb(${r},${g},${b})">${char}</span>`;
+                    } else {
+                        row += char;
+                    }
+                }
+                ascii += row + '\n';
+            }
+            
+            return {
+                ascii,
+                width,
+                height,
+                originalWidth: originalImageData.width,
+                originalHeight: originalImageData.height,
+                scaleFactor,
+                totalChars: width * height
+            };
+        }
+
+        function displayASCII(ascii) {
+            if (ascii.includes('<span')) {
+                asciiOutput.innerHTML = ascii;
+            } else {
+                asciiOutput.textContent = ascii;
+            }
+        }
+
+        function updateStats(result) {
+            const { width, height, originalWidth, originalHeight, scaleFactor, totalChars } = result;
+            
+            document.getElementById('statOriginal').textContent = `${originalWidth}×${originalHeight}`;
+            document.getElementById('statProcessed').textContent = `${originalWidth * scaleFactor}×${originalHeight * scaleFactor}`;
+            document.getElementById('statOutput').textContent = `${width}×${height}`;
+            document.getElementById('statScale').textContent = `${scaleFactor}x`;
+        }
+
+        function copyToClipboard() {
+            const text = asciiOutput.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('📋 クリップボードにコピーしました');
+            });
+        }
+
+        function downloadAsText() {
+            const text = asciiOutput.textContent;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ascii-art-${currentPlatform}-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('💾 ファイルを保存しました');
+        }
+
+        function updateValue(id) {
+            document.getElementById(id + 'Value').textContent = document.getElementById(id).value;
+            if (currentImage) displayOriginalImage();
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function showNotification(message) {
+            document.querySelector('.notification')?.remove();
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
