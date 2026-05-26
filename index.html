@@ -417,6 +417,9 @@
             const scaleFactor = parseInt(document.getElementById('scale').value);
             const targetWidth = parseInt(document.getElementById('width').value);
             const targetHeight = parseInt(document.getElementById('height').value);
+            const detail = parseInt(document.getElementById('detail').value);
+            const useColor = document.getElementById('useColor').checked;
+            const charSet = charSets[document.querySelector('input[name="charSet"]:checked').value] || charSets.full;
             
             // Upscale and process
             const upscaledCanvas = upscaleImage(currentImage, targetWidth, targetHeight, scaleFactor);
@@ -433,114 +436,57 @@
             const imageData = ctx.getImageData(0, 0, width, height);
             const pixels = imageData.data;
             
-            // Grayscale conversion
-            const grayscale = [];
-            for (let i = 0; i < pixels.length; i += 4) {
-                const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
-                grayscale.push(gray);
+            // Simple grayscale conversion
+            const grayscale = new Float32Array(width * height);
+            for (let i = 0; i < width * height; i++) {
+                const idx = i * 4;
+                grayscale[i] = 0.299 * pixels[idx] + 0.587 * pixels[idx + 1] + 0.114 * pixels[idx + 2];
             }
             
-            // Enhanced multi-directional edge detection
-            const prewittX = [-1, 0, 1, -1, 0, 1, -1, 0, 1];
-            const prewittY = [-1, -1, -1, 0, 0, 0, 1, 1, 1];
+            // Sobel edge detection
             const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
             const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
             
-            const gradients = [];
-            const edges = [];
+            const edges = new Float32Array(width * height);
             
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = y * width + x;
-                    gradients.push(grayscale[idx] / 255);
-                    
-                    if (x > 0 && y > 0 && x < width - 1 && y < height - 1) {
-                        let gxP = 0, gyP = 0;
-                        let gxS = 0, gyS = 0;
-                        
-                        for (let ky = -1; ky <= 1; ky++) {
-                            for (let kx = -1; kx <= 1; kx++) {
-                                const kidx = (ky + 1) * 3 + (kx + 1);
-                                const pixel = grayscale[(y + ky) * width + (x + kx)];
-                                
-                                gxP += pixel * prewittX[kidx];
-                                gyP += pixel * prewittY[kidx];
-                                gxS += pixel * sobelX[kidx];
-                                gyS += pixel * sobelY[kidx];
-                            }
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    let gx = 0, gy = 0;
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const kidx = (ky + 1) * 3 + (kx + 1);
+                            const pidx = (y + ky) * width + (x + kx);
+                            gx += grayscale[pidx] * sobelX[kidx];
+                            gy += grayscale[pidx] * sobelY[kidx];
                         }
-                        
-                        const prewittMag = Math.sqrt(gxP * gxP + gyP * gyP) / (3 * 255);
-                        const sobelMag = Math.sqrt(gxS * gxS + gyS * gyS) / (4 * 255);
-                        
-                        // Combine edge detection methods
-                        const combinedEdge = (prewittMag + sobelMag) / 2;
-                        edges.push(Math.min(1, combinedEdge));
-                    } else {
-                        edges.push(0);
                     }
+                    edges[y * width + x] = Math.sqrt(gx * gx + gy * gy) / (255 * 4);
                 }
             }
             
-            // Adaptive contrast calculation
-            const detail = parseInt(document.getElementById('detail').value);
-            const minGray = Math.min(...grayscale);
-            const maxGray = Math.max(...grayscale);
-            const contrastRange = maxGray - minGray;
-            const adaptiveContrast = Math.max(1.2, 1.5 * (contrastRange / 255));
-            
-            // Generate ASCII with 2x2 block processing for better detail
-            const charSet = charSets[document.querySelector('input[name="charSet"]:checked').value] || charSets.full;
-            const useColor = document.getElementById('useColor').checked;
-            
+            // Generate ASCII
             let ascii = '';
             
-            for (let y = 0; y < height - 1; y += 2) {
+            for (let y = 0; y < height; y++) {
                 let row = '';
-                for (let x = 0; x < width - 1; x += 2) {
-                    // Process 2x2 block
-                    const positions = [
-                        [y, x], [y, x + 1],
-                        [y + 1, x], [y + 1, x + 1]
-                    ];
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    const gray = grayscale[idx];
+                    const edge = edges[idx];
                     
-                    // Calculate block statistics
-                    const blockGrays = positions.map(([py, px]) => grayscale[py * width + px]);
-                    const blockEdges = positions.map(([py, px]) => edges[py * width + px]);
-                    const blockContrast = Math.max(...blockGrays) - Math.min(...blockGrays);
+                    // Combine grayscale with edge detection
+                    const combined = gray * (1 - edge * detail * 0.3);
+                    const normalized = combined / 255;
                     
-                    // Local complexity analysis
-                    const avgGray = blockGrays.reduce((a, b) => a + b, 0) / 4;
-                    const avgEdge = blockEdges.reduce((a, b) => a + b, 0) / 4;
-                    const grayVariance = blockGrays.reduce((sum, g) => sum + Math.pow(g - avgGray, 2), 0) / 4;
-                    
-                    // Enhanced character selection based on block complexity
-                    let baseValue = avgGray / 255;
-                    let edgeBoost = avgEdge * detail * 0.4 * adaptiveContrast;
-                    
-                    // Adjust for local contrast
-                    const contrastBoost = (blockContrast / 255) * 0.15;
-                    baseValue = Math.min(1, baseValue + contrastBoost);
-                    
-                    // Variance-based character complexity
-                    const varianceBoost = Math.sqrt(grayVariance) * 0.2;
-                    baseValue = Math.min(1, baseValue + varianceBoost);
-                    
-                    // Edge-weighted final value
-                    const finalValue = Math.max(0, Math.min(1, baseValue + edgeBoost));
-                    
-                    // Character selection with enhanced range
-                    const charIndex = Math.floor(finalValue * (charSet.length - 1));
+                    // Character selection
+                    const charIndex = Math.floor(normalized * (charSet.length - 1));
                     const char = charSet[Math.min(charIndex, charSet.length - 1)];
                     
-                    // Color handling - use average color of block
                     if (useColor) {
-                        const colorPositions = positions.flatMap(([py, px]) => [py * width + px]);
-                        const avgR = colorPositions.reduce((sum, i) => sum + pixels[i * 4], 0) / 4;
-                        const avgG = colorPositions.reduce((sum, i) => sum + pixels[i * 4 + 1], 0) / 4;
-                        const avgB = colorPositions.reduce((sum, i) => sum + pixels[i * 4 + 2], 0) / 4;
-                        
-                        row += `<span style="color:rgb(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)})">${char}</span>`;
+                        const r = pixels[idx * 4];
+                        const g = pixels[idx * 4 + 1];
+                        const b = pixels[idx * 4 + 2];
+                        row += `<span style="color:rgb(${r},${g},${b})">${char}</span>`;
                     } else {
                         row += char;
                     }
@@ -550,12 +496,12 @@
             
             return {
                 ascii,
-                width: Math.floor(width / 2),
-                height: Math.floor(height / 2),
+                width,
+                height,
                 originalWidth: originalImageData.width,
                 originalHeight: originalImageData.height,
                 scaleFactor,
-                totalChars: Math.floor(width / 2) * Math.floor(height / 2)
+                totalChars: width * height
             };
         }
 
