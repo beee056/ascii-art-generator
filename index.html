@@ -447,6 +447,7 @@
             const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
             const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
             
+            const gradients = new Float32Array(width * height);
             const edges = new Float32Array(width * height);
             
             for (let y = 1; y < height - 1; y++) {
@@ -456,11 +457,13 @@
                         for (let kx = -1; kx <= 1; kx++) {
                             const kidx = (ky + 1) * 3 + (kx + 1);
                             const pidx = (y + ky) * width + (x + kx);
-                            gx += grayscale[pidx] * sobelX[kidx];
-                            gy += grayscale[pidx] * sobelY[kidx];
+                            const pixel = grayscale[pidx];
+                            gx += pixel * sobelX[kidx];
+                            gy += pixel * sobelY[kidx];
                         }
                     }
-                    edges[y * width + x] = Math.sqrt(gx * gx + gy * gy) / (255 * 4);
+                    gradients[y * width + x] = grayscale[y * width + x];
+                    edges[y * width + x] = Math.min(1, Math.sqrt(gx * gx + gy * gy) / (255 * 4));
                 }
             }
             
@@ -471,16 +474,22 @@
                 let row = '';
                 for (let x = 0; x < width; x++) {
                     const idx = y * width + x;
-                    const gray = grayscale[idx];
+                    const brightness = gradients[idx];
                     const edge = edges[idx];
                     
-                    // Combine grayscale with edge detection
-                    const combined = gray * (1 - edge * detail * 0.3);
-                    const normalized = combined / 255;
+                    // Brightness -> character
+                    // 255 (white) → 0 (space)
+                    // 0 (black) → 70 (@)
+                    const brightnessValue = (255 - brightness) / 255;
                     
-                    // Character selection
-                    const charIndex = Math.floor(normalized * (charSet.length - 1));
-                    const char = charSet[Math.min(charIndex, charSet.length - 1)];
+                    // Edge detection -> darken at edges
+                    // Strong edges push towards darker characters
+                    const edgeValue = edge * detail * 0.5;
+                    
+                    // Combined value
+                    const finalValue = Math.min(1, brightnessValue + edgeValue);
+                    const charIndex = Math.floor(finalValue * (charSet.length - 1));
+                    const char = charSet[charIndex];
                     
                     if (useColor) {
                         const r = pixels[idx * 4];
