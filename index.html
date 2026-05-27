@@ -478,16 +478,16 @@
                 for (let x = 0; x < width; x++) {
                     const brightness = grayscale[y][x];
                     const edge = edges[y][x];
-                    const detailFactor = detail * 0.1;
                     
-                    // Direct mapping: dark pixels = dense characters, bright pixels = light characters
-                    const brightnessNorm = (255 - brightness) / 255;
-                    const edgeEffect = edge * detailFactor;
+                    // Direct brightness mapping: 0 -> @, 255 -> space
+                    const brightnessNorm = brightness / 255;
                     
-                    // Combine brightness and edge detection
-                    const finalValue = Math.max(0, Math.min(1, brightnessNorm - edgeEffect));
-                    const charIndex = Math.floor(finalValue * (charSet.length - 1));
-                    const char = charSet[charIndex];
+                    // Edge adjustment: edges become slightly darker
+                    const charValue = brightnessNorm - (edge * detail * 0.15);
+                    const clampedValue = Math.max(0, Math.min(1, charValue));
+                    
+                    const charIndex = Math.floor(clampedValue * charSet.length);
+                    const char = charSet[Math.min(charIndex, charSet.length - 1)];
                     
                     if (useColor) {
                         const idx = (y * width + x) * 4;
