@@ -449,10 +449,13 @@
             
             const gradients = new Float32Array(width * height);
             const edges = new Float32Array(width * height);
+            const localContrast = new Float32Array(width * height);
             
             for (let y = 1; y < height - 1; y++) {
                 for (let x = 1; x < width - 1; x++) {
                     let gx = 0, gy = 0;
+                    let minBright = 255, maxBright = 0, sumBright = 0;
+                    
                     for (let ky = -1; ky <= 1; ky++) {
                         for (let kx = -1; kx <= 1; kx++) {
                             const kidx = (ky + 1) * 3 + (kx + 1);
@@ -460,14 +463,18 @@
                             const pixel = grayscale[pidx];
                             gx += pixel * sobelX[kidx];
                             gy += pixel * sobelY[kidx];
+                            minBright = Math.min(minBright, pixel);
+                            maxBright = Math.max(maxBright, pixel);
+                            sumBright += pixel;
                         }
                     }
                     gradients[y * width + x] = grayscale[y * width + x];
                     edges[y * width + x] = Math.min(1, Math.sqrt(gx * gx + gy * gy) / (255 * 4));
+                    localContrast[y * width + x] = (maxBright - minBright) / 255;
                 }
             }
             
-            // Generate ASCII
+            // Generate ASCII with enhanced detail
             let ascii = '';
             
             for (let y = 0; y < height; y++) {
@@ -476,18 +483,19 @@
                     const idx = y * width + x;
                     const brightness = gradients[idx];
                     const edge = edges[idx];
+                    const contrast = localContrast[idx];
                     
-                    // Brightness -> character
-                    // 255 (white) → 0 (space)
-                    // 0 (black) → 70 (@)
+                    // Normalized brightness: 0=dark->@, 255=bright->space
                     const brightnessValue = (255 - brightness) / 255;
                     
-                    // Edge detection -> darken at edges
-                    // Strong edges push towards darker characters
-                    const edgeValue = edge * detail * 0.5;
+                    // Edge value reduces character density at edges
+                    const edgeEffect = edge * detail * 0.12;
                     
-                    // Combined value
-                    const finalValue = Math.min(1, brightnessValue + edgeValue);
+                    // Local contrast adds detail to edge areas
+                    const contrastBoost = contrast * detail * 0.08;
+                    
+                    // Final character selection value
+                    const finalValue = Math.max(0, Math.min(1, brightnessValue + contrastBoost - edgeEffect));
                     const charIndex = Math.floor(finalValue * (charSet.length - 1));
                     const char = charSet[charIndex];
                     
