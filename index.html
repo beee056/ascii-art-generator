@@ -470,7 +470,8 @@
                 }
             }
             
-            // Generate ASCII
+            // Generate ASCII with ASCII character aspect ratio compensation
+            const charAspectRatio = 2.0; // Most chars are ~2x taller than wide
             let ascii = '';
             
             for (let y = 0; y < height; y++) {
@@ -479,14 +480,15 @@
                     const brightness = grayscale[y][x];
                     const edge = edges[y][x];
                     
-                    // Direct brightness mapping: 0 -> @, 255 -> space
+                    // Direct mapping: 0=black(dense char), 255=white(space)
                     const brightnessNorm = brightness / 255;
                     
-                    // Edge adjustment: edges become slightly darker
-                    const charValue = brightnessNorm - (edge * detail * 0.15);
-                    const clampedValue = Math.max(0, Math.min(1, charValue));
+                    // Edge enhancement for better definition
+                    const edgeBoost = edge * detail * 0.12;
                     
-                    const charIndex = Math.floor(clampedValue * charSet.length);
+                    // Final character selection
+                    const charValue = Math.max(0, Math.min(1, brightnessNorm + edgeBoost));
+                    const charIndex = Math.floor(charValue * charSet.length);
                     const char = charSet[Math.min(charIndex, charSet.length - 1)];
                     
                     if (useColor) {
